@@ -1,0 +1,65 @@
+{
+  "owner": "0x1111111111111111111111111111111111111111",
+  "approvals": [
+    {
+      "token": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+      "token_symbol": "USDC",
+      "spender": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+      "spender_label": "Uniswap V3 Router",
+      "spender_verified": true,
+      "standard": "ERC20",
+      "amount": "max",
+      "last_updated": 1735689600
+    },
+    {
+      "token": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+      "token_symbol": "WETH",
+      "spender": "0x1111111254EEB25477B68fb85Ed929f73A960582",
+      "spender_label": "1inch Aggregator",
+      "spender_verified": true,
+      "standard": "ERC20",
+      "amount": "1000000000000000000",
+      "last_updated": 1746057600
+    },
+    {
+      "token": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+      "token_symbol": "DAI",
+      "spender": "0xDEAD00000000000000000000000000000000BEEF",
+      "spender_label": "",
+      "spender_verified": false,
+      "standard": "ERC20",
+      "amount": "1000000000000000000000000000000000",
+      "last_updated": 1743465600
+    },
+    {
+      "token": "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+      "token_symbol": "BAYC",
+      "spender": "0xBADBABE000000000000000000000000000000bad",
+      "spender_label": "Pink-Drainer",
+      "spender_verified": false,
+      "standard": "ERC721",
+      "is_approval_for_all": true,
+      "last_updated": 1748736000
+    },
+    {
+      "token": "0x514910771AF9Ca656af840dff83E8264EcF986CA",
+      "token_symbol": "LINK",
+      "spender": "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f",
+      "spender_label": "Legacy Router",
+      "spender_verified": true,
+      "standard": "ERC20",
+      "amount": "max",
+      "last_updated": 1672531200
+    },
+    {
+      "token": "0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE",
+      "token_symbol": "SHIB",
+      "spender": "0xE592427A0AEce92De3Edee1F18E0157C05861564",
+      "spender_label": "Uniswap V3 Router",
+      "spender_verified": true,
+      "standard": "ERC20",
+      "amount": "0",
+      "last_updated": 1746057600
+    }
+  ]
+}
