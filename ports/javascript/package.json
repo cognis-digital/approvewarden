@@ -1,0 +1,10 @@
+{
+  "name": "@cognis/approvewarden",
+  "version": "0.2.0",
+  "description": "JavaScript port of approvewarden (Cognis Neural Suite)",
+  "bin": {
+    "approvewarden": "index.js"
+  },
+  "license": "LicenseRef-COCL-1.0",
+  "type": "module"
+}
