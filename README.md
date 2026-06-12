@@ -16,7 +16,7 @@
 </div>
 
 ```bash
-pip install cognis-approvewarden
+pip install "git+https://github.com/cognis-digital/approvewarden.git"
 approvewarden scan .            # → prioritized findings in seconds
 ```
 
@@ -51,7 +51,7 @@ A headless, scriptable revoke.cash that DAOs/treasuries can run in CI to alert o
 ## Quick start
 
 ```bash
-pip install cognis-approvewarden
+pip install "git+https://github.com/cognis-digital/approvewarden.git"
 approvewarden --version
 approvewarden scan .                       # scan current project
 approvewarden scan . --format json         # machine-readable
