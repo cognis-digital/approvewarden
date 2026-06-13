@@ -20,6 +20,33 @@ pip install cognis-approvewarden
 approvewarden scan .            # → prioritized findings in seconds
 ```
 
+## Usage — step by step
+
+`approvewarden` audits an exported wallet-approval set (JSON or CSV) for infinite allowances and scores drainer exposure — fully offline.
+
+1. **Install** (Python 3.10+):
+   ```bash
+   pip install -e .            # or: pipx install approvewarden
+   ```
+2. **Scan an approval export** (human-readable table):
+   ```bash
+   approvewarden scan demos/01-basic/approvals.json
+   ```
+3. **Read the output** as JSON (e.g. the overall risk score):
+   ```bash
+   approvewarden scan approvals.csv --format json | jq .risk_score
+   cat approvals.json | approvewarden scan -      # stdin (JSON)
+   ```
+4. **Fail the build above a severity threshold**:
+   ```bash
+   approvewarden scan approvals.json --fail-on high
+   ```
+5. **Gate CI** — exit `2` when risky approvals at/above `--fail-on` are found, `0` when clean, `1` on parse error:
+   ```yaml
+   - run: pip install -e . && approvewarden scan approvals.json --fail-on high
+   ```
+
+
 ## Contents
 
 - [Why approvewarden?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
