@@ -20,6 +20,12 @@ pip install "git+https://github.com/cognis-digital/approvewarden.git"
 approvewarden scan .            # → prioritized findings in seconds
 ```
 
+<!-- cognis:layman:start -->
+## What is this?
+
+`approvewarden` is a small, self-contained command-line tool from the Cognis suite. It does one job well, runs locally with no account or cloud service required, and is built to be easy to install and read. See the usage below for what it can do.
+<!-- cognis:layman:end -->
+
 ## Contents
 
 - [Why approvewarden?](#why) · [Features](#features) · [Quick start](#quick-start) · [Example](#example) · [Architecture](#architecture) · [AI stack](#ai-stack) · [How it compares](#how-it-compares) · [Integrations](#integrations) · [Install anywhere](#install-anywhere) · [Related](#related) · [Contributing](#contributing)
@@ -48,6 +54,42 @@ A headless, scriptable revoke.cash that DAOs/treasuries can run in CI to alert o
 <div align="right"><a href="#top">↑ back to top</a></div>
 
 <a name="quick-start"></a>
+<!-- cognis:install:start -->
+## Install
+
+`approvewarden` is source-available (not published to PyPI) — every method below installs
+straight from GitHub. Pick whichever you prefer; the one-line scripts auto-detect
+the best tool available on your machine.
+
+**One-liner (Linux / macOS):**
+```sh
+curl -fsSL https://raw.githubusercontent.com/cognis-digital/approvewarden/HEAD/install.sh | sh
+```
+
+**One-liner (Windows PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/cognis-digital/approvewarden/HEAD/install.ps1 | iex
+```
+
+**Or install manually — any one of:**
+```sh
+pipx install "git+https://github.com/cognis-digital/approvewarden.git"     # isolated (recommended)
+uv tool install "git+https://github.com/cognis-digital/approvewarden.git"  # uv
+pip install "git+https://github.com/cognis-digital/approvewarden.git"      # pip
+```
+
+**From source:**
+```sh
+git clone https://github.com/cognis-digital/approvewarden.git
+cd approvewarden && pip install .
+```
+
+Then run:
+```sh
+approvewarden --help
+```
+<!-- cognis:install:end -->
+
 ## Quick start
 
 ```bash
