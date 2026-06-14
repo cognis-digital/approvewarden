@@ -298,23 +298,39 @@ def load_approvals_from_text(text: str, fmt: str = "auto") -> list[Approval]:
     """Parse approvals from a JSON or CSV string.
 
     fmt: 'json', 'csv', or 'auto' (sniff by content).
+    Raises ApprovalError on parse failures; returns an empty list for
+    legitimately empty input.
     """
+    if not isinstance(text, str):
+        raise ApprovalError("input must be a string")
     fmt = (fmt or "auto").lower()
-    stripped = text.lstrip()
+    stripped = text.strip()
+    if not stripped:
+        # Empty input is valid and yields zero approvals.
+        return []
     if fmt == "auto":
         fmt = "json" if stripped[:1] in ("[", "{") else "csv"
 
     records: list[dict[str, Any]]
     if fmt == "json":
-        records = _coerce_records(json.loads(text))
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ApprovalError(f"invalid JSON: {exc}") from exc
+        records = _coerce_records(parsed)
     elif fmt == "csv":
         reader = csv.DictReader(io.StringIO(text))
+        if reader.fieldnames is None:
+            # Empty CSV (no header row at all).
+            return []
         records = [dict(row) for row in reader]
     else:
-        raise ApprovalError(f"unknown format: {fmt}")
+        raise ApprovalError(f"unknown format: {fmt!r}")
 
     approvals: list[Approval] = []
     for i, rec in enumerate(records):
+        if rec is None:
+            raise ApprovalError(f"record {i}: approval record must be an object")
         try:
             approvals.append(Approval.from_dict(rec))
         except ApprovalError as exc:
@@ -323,14 +339,27 @@ def load_approvals_from_text(text: str, fmt: str = "auto") -> list[Approval]:
 
 
 def load_approvals(path: str, fmt: str = "auto") -> list[Approval]:
-    """Load approvals from a JSON or CSV file on disk."""
+    """Load approvals from a JSON or CSV file on disk.
+
+    Raises ApprovalError with a clear message when the file cannot be opened
+    or its contents cannot be parsed.
+    """
+    if not path or not isinstance(path, str):
+        raise ApprovalError("file path must be a non-empty string")
+    import os
+    if not os.path.exists(path):
+        raise ApprovalError(f"file not found: {path!r}")
     if fmt == "auto":
-        if path.lower().endswith(".csv"):
+        lower = path.lower()
+        if lower.endswith(".csv"):
             fmt = "csv"
-        elif path.lower().endswith(".json"):
+        elif lower.endswith(".json"):
             fmt = "json"
-    with open(path, "r", encoding="utf-8") as fh:
-        return load_approvals_from_text(fh.read(), fmt=fmt)
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return load_approvals_from_text(fh.read(), fmt=fmt)
+    except OSError as exc:
+        raise ApprovalError(f"cannot read file {path!r}: {exc}") from exc
 
 
 def audit_approvals(
