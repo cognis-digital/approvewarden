@@ -34,3 +34,6 @@ approvewarden = "approvewarden.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["approvewarden"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
