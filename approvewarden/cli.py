@@ -29,6 +29,9 @@ from approvewarden.core import (
     ApprovalError,
     audit_approvals,
     load_approvals,
+    load_drainer_addresses,
+    revoke_plan,
+    to_sarif,
 )
 
 _SEV_GLYPH = {
@@ -88,6 +91,30 @@ def _render_table(report: dict) -> str:
     return "\n".join(lines)
 
 
+def _render_revoke_plan(plan: list[dict]) -> str:
+    lines: list[str] = []
+    lines.append(f"APPROVEWARDEN {TOOL_VERSION} — advisory revoke plan")
+    lines.append("=" * 60)
+    if not plan:
+        lines.append("Nothing to revoke at/above the chosen severity. ✓")
+        return "\n".join(lines)
+    lines.append(
+        f"{len(plan)} approval(s) recommended for revocation "
+        "(advisory only — sign in your own wallet):"
+    )
+    lines.append("-" * 60)
+    for i, p in enumerate(plan, 1):
+        sym = p["token_symbol"] or _short(p["token"])
+        lines.append(
+            f"{i:>2}. [{p['severity'].upper():<8}] {sym:<10} {p['standard']}"
+        )
+        lines.append(f"      token:  {p['token']}")
+        lines.append(f"      call:   {p['call']}")
+    lines.append("-" * 60)
+    lines.append("approvewarden never signs or broadcasts — these are read-only calls.")
+    return "\n".join(lines)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=TOOL_NAME,
@@ -119,9 +146,32 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     scan.add_argument(
         "--format",
-        choices=("table", "json"),
+        choices=("table", "json", "sarif"),
         default="table",
-        help="output format (default: table)",
+        help="output format (default: table). sarif = code-scanning dashboards.",
+    )
+    scan.add_argument(
+        "--emit-revoke",
+        action="store_true",
+        help=(
+            "instead of the audit, print an advisory revoke plan "
+            "(approve(spender,0) / setApprovalForAll(spender,false)). "
+            "Read-only: nothing is signed or broadcast."
+        ),
+    )
+    scan.add_argument(
+        "--revoke-min",
+        choices=tuple(s for s in SEVERITY_ORDER if s != "info"),
+        default="high",
+        help="minimum severity to include in --emit-revoke (default: high)",
+    )
+    scan.add_argument(
+        "--drainer-list",
+        default=None,
+        help=(
+            "path to a newline-delimited file of known-drainer spender "
+            "addresses; matches escalate to critical (offline deny-list)"
+        ),
     )
     scan.add_argument(
         "--input-format",
@@ -138,12 +188,23 @@ def _build_parser() -> argparse.ArgumentParser:
             "(default: high). Use to gate CI."
         ),
     )
+
+    sub.add_parser(
+        "mcp",
+        help="start the MCP stdio server (needs the [mcp] extra)",
+        description="Expose approvewarden.scan() as an MCP tool over stdio.",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
+
+    if args.command == "mcp":
+        from approvewarden.mcp_server import serve
+
+        return serve()
 
     if args.command != "scan":
         parser.print_help()
@@ -164,10 +225,33 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"error: cannot read input: {exc}", file=sys.stderr)
         return 1
 
-    report = audit_approvals(approvals)
+    denylist = None
+    if args.drainer_list:
+        try:
+            with open(args.drainer_list, "r", encoding="utf-8") as fh:
+                lines = [
+                    ln.strip()
+                    for ln in fh
+                    if ln.strip() and not ln.lstrip().startswith("#")
+                ]
+            denylist = load_drainer_addresses(lines)
+        except OSError as exc:
+            print(f"error: cannot read drainer list: {exc}", file=sys.stderr)
+            return 1
 
-    if args.format == "json":
+    report = audit_approvals(approvals, denylist=denylist)
+
+    if args.emit_revoke:
+        plan = revoke_plan(report, min_severity=args.revoke_min)
+        if args.format == "json":
+            print(json.dumps(plan, indent=2))
+        else:
+            print(_render_revoke_plan(plan))
+    elif args.format == "json":
         print(json.dumps(report, indent=2))
+    elif args.format == "sarif":
+        src = args.input if args.input != "-" else "approvals.json"
+        print(json.dumps(to_sarif(report, source_file=src), indent=2))
     else:
         print(_render_table(report))
 

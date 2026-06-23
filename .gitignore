@@ -6,3 +6,9 @@ dist/
 build/
 .pytest_cache/
 .DS_Store
+# language-port build artifacts
+ports/rust/target/
+ports/rust/Cargo.lock
+ports/go/approvewarden
+ports/go/approvewarden.exe
+ports/javascript/node_modules/

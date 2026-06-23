@@ -21,10 +21,35 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 import re
 import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
+
+# --- tool identity ---------------------------------------------------------
+# Read the single source of truth (the VERSION file) when packaged alongside
+# the module; fall back to a literal so imports never fail.
+TOOL_NAME = "approvewarden"
+
+
+def _read_version() -> str:
+    here = os.path.dirname(os.path.abspath(__file__))
+    for candidate in (
+        os.path.join(here, "..", "VERSION"),
+        os.path.join(here, "VERSION"),
+    ):
+        try:
+            with open(candidate, "r", encoding="utf-8") as fh:
+                v = fh.read().strip()
+                if v:
+                    return v
+        except OSError:
+            continue
+    return "0.2.0"
+
+
+TOOL_VERSION = _read_version()
 
 # Common sentinel values used by contracts to mean "unlimited".
 UINT256_MAX = (1 << 256) - 1
@@ -81,9 +106,11 @@ def _parse_amount(value: Any) -> int:
         raise ApprovalError(f"invalid amount: {value!r}") from exc
 
 
-# A small built-in deny-list of spender labels that indicate known-bad or
+# A small built-in deny-list of spender *labels* that indicate known-bad or
 # unaudited contracts. Real deployments would extend this; the point is that
-# a labelled malicious spender escalates severity regardless of amount.
+# a labelled malicious spender escalates severity regardless of amount. These
+# are generic family names that wallet explorers (Etherscan, GoPlus, Scam
+# Sniffer) attach to flagged spenders -- not fabricated addresses.
 KNOWN_DRAINER_LABELS = {
     "drainer",
     "phishing",
@@ -91,9 +118,34 @@ KNOWN_DRAINER_LABELS = {
     "pink-drainer",
     "angel-drainer",
     "monkey-drainer",
+    "venom-drainer",
+    "ms-drainer",
     "scam",
     "malicious",
+    "fake-permit",
+    "approval-farming",
+    "wallet-drainer",
 }
+
+# Optional address deny-list. Empty by default -- callers load their own from
+# a feed/file via ``load_drainer_addresses``. We ship NO hard-coded addresses
+# so the tool never makes unverified on-chain accusations.
+KNOWN_DRAINER_ADDRESSES: set[str] = set()
+
+
+def load_drainer_addresses(addresses: Iterable[str]) -> set[str]:
+    """Validate + normalize a caller-supplied address deny-list.
+
+    Returns the set of normalized addresses. Invalid entries are skipped so a
+    single bad line never breaks a scan.
+    """
+    out: set[str] = set()
+    for a in addresses:
+        try:
+            out.add(normalize_address(a))
+        except ApprovalError:
+            continue
+    return out
 
 
 @dataclass
@@ -200,8 +252,16 @@ def classify_allowance(approval: Approval) -> str:
     return "finite"
 
 
-def score_approval(approval: Approval, now: int | None = None) -> Finding:
-    """Produce a 0-100 risk score + severity for a single approval."""
+def score_approval(
+    approval: Approval,
+    now: int | None = None,
+    denylist: set[str] | None = None,
+) -> Finding:
+    """Produce a 0-100 risk score + severity for a single approval.
+
+    ``denylist`` is an optional set of normalized spender addresses known to be
+    malicious; a hit escalates the finding to critical regardless of amount.
+    """
     now = int(time.time()) if now is None else now
     kind = classify_allowance(approval)
     reasons: list[str] = []
@@ -238,7 +298,15 @@ def score_approval(approval: Approval, now: int | None = None) -> Finding:
         reasons.append("finite, bounded allowance")
 
     label = approval.spender_label.lower()
-    if label and any(bad in label for bad in KNOWN_DRAINER_LABELS):
+    dl = denylist if denylist is not None else KNOWN_DRAINER_ADDRESSES
+    addr_flagged = bool(dl) and approval.spender in dl
+    label_flagged = bool(label) and any(bad in label for bad in KNOWN_DRAINER_LABELS)
+    if addr_flagged:
+        score += 100
+        reasons.append(
+            f"spender address {approval.spender} is on the drainer deny-list"
+        )
+    elif label_flagged:
         score += 100
         reasons.append(f"spender labelled as known-malicious ({approval.spender_label})")
     elif not approval.spender_verified:
@@ -334,10 +402,12 @@ def load_approvals(path: str, fmt: str = "auto") -> list[Approval]:
 
 
 def audit_approvals(
-    approvals: Iterable[Approval], now: int | None = None
+    approvals: Iterable[Approval],
+    now: int | None = None,
+    denylist: set[str] | None = None,
 ) -> dict[str, Any]:
     """Audit a set of approvals and return an aggregate report dict."""
-    findings = [score_approval(a, now=now) for a in approvals]
+    findings = [score_approval(a, now=now, denylist=denylist) for a in approvals]
     # Only allowances that actually grant something are "findings".
     active = [f for f in findings if f.allowance_kind != "zero"]
 
@@ -391,4 +461,138 @@ def audit_approvals(
         ),
         "findings": [f.to_dict() for f in active_sorted],
         "clean": len(active) == 0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# High-level convenience API (used by the MCP server, agents, and the CLI)
+# ---------------------------------------------------------------------------
+
+def scan(
+    target: str,
+    fmt: str = "auto",
+    now: int | None = None,
+    denylist: set[str] | None = None,
+) -> dict[str, Any]:
+    """Load an approval export from ``target`` (a JSON/CSV path) and audit it.
+
+    This is the one-call entry point: ``scan("approvals.json")`` returns the
+    same report dict as ``audit_approvals``. Fully offline -- ``target`` must be
+    a local file produced by an explorer/indexer export.
+    """
+    approvals = load_approvals(target, fmt=fmt)
+    return audit_approvals(approvals, now=now, denylist=denylist)
+
+
+def to_json(report: dict[str, Any], indent: int = 2) -> str:
+    """Serialize a report dict to a JSON string."""
+    return json.dumps(report, indent=indent)
+
+
+def revoke_plan(report: dict[str, Any], min_severity: str = "high") -> list[dict[str, Any]]:
+    """Build a read-only, copy-pasteable revoke plan from a report.
+
+    For every finding at/above ``min_severity`` we describe the exact call the
+    wallet owner would make to revoke -- ``approve(spender, 0)`` for ERC-20 or
+    ``setApprovalForAll(spender, false)`` for ERC-721/1155. We DO NOT sign,
+    broadcast, or build raw transactions: this is advisory output only.
+    """
+    threshold = SEVERITY_ORDER.get(min_severity, SEVERITY_ORDER["high"])
+    plan: list[dict[str, Any]] = []
+    for f in report.get("findings", []):
+        if SEVERITY_ORDER.get(f["severity"], 0) < threshold:
+            continue
+        standard = f["standard"].upper()
+        if f["allowance_kind"] == "blanket" or standard in ("ERC721", "ERC1155"):
+            method = "setApprovalForAll"
+            args = [f["spender"], False]
+            signature = f"setApprovalForAll({f['spender']}, false)"
+        else:
+            method = "approve"
+            args = [f["spender"], 0]
+            signature = f"approve({f['spender']}, 0)"
+        plan.append(
+            {
+                "token": f["token"],
+                "token_symbol": f["token_symbol"],
+                "spender": f["spender"],
+                "standard": standard,
+                "severity": f["severity"],
+                "score": f["score"],
+                "method": method,
+                "args": args,
+                "call": signature,
+                "note": "advisory only -- review and sign in your own wallet",
+            }
+        )
+    return plan
+
+
+def to_sarif(report: dict[str, Any], source_file: str = "approvals.json") -> dict[str, Any]:
+    """Render the report as a SARIF 2.1.0 document for code-scanning dashboards.
+
+    Each active approval becomes a SARIF result; severity maps to SARIF level
+    (error/warning/note). Useful for GitHub code-scanning and any SARIF viewer.
+    """
+    level_map = {
+        "critical": "error",
+        "high": "error",
+        "medium": "warning",
+        "low": "note",
+        "info": "note",
+    }
+    rules: dict[str, dict[str, Any]] = {}
+    results: list[dict[str, Any]] = []
+    for f in report.get("findings", []):
+        rule_id = f"approvewarden/{f['allowance_kind']}"
+        if rule_id not in rules:
+            rules[rule_id] = {
+                "id": rule_id,
+                "name": f["allowance_kind"].replace("_", " ").title().replace(" ", ""),
+                "shortDescription": {"text": f"{f['allowance_kind']} token allowance"},
+                "defaultConfiguration": {"level": level_map.get(f["severity"], "warning")},
+            }
+        sym = f["token_symbol"] or f["token"]
+        results.append(
+            {
+                "ruleId": rule_id,
+                "level": level_map.get(f["severity"], "warning"),
+                "message": {
+                    "text": (
+                        f"{sym}: {f['allowance_kind']} allowance to "
+                        f"{f['spender_label'] or f['spender']} "
+                        f"(score {f['score']}/100) -- " + "; ".join(f["reasons"])
+                    )
+                },
+                "properties": {
+                    "score": f["score"],
+                    "severity": f["severity"],
+                    "spender": f["spender"],
+                    "token": f["token"],
+                },
+                "locations": [
+                    {
+                        "physicalLocation": {
+                            "artifactLocation": {"uri": source_file},
+                        }
+                    }
+                ],
+            }
+        )
+    return {
+        "version": "2.1.0",
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "approvewarden",
+                        "version": TOOL_VERSION,
+                        "informationUri": "https://github.com/cognis-digital/approvewarden",
+                        "rules": list(rules.values()),
+                    }
+                },
+                "results": results,
+            }
+        ],
     }

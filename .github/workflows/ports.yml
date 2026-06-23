@@ -1,0 +1,65 @@
+name: ports
+
+# Build + smoke-test every language port of the approvewarden CLI surface.
+# All jobs are offline: they read local fixtures only, never the network.
+
+on:
+  push:
+    paths:
+      - "ports/**"
+      - ".github/workflows/ports.yml"
+  pull_request:
+    paths:
+      - "ports/**"
+      - ".github/workflows/ports.yml"
+  workflow_dispatch:
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ports/go
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+      - name: vet
+        run: go vet ./...
+      - name: test
+        run: go test -v ./...
+      - name: build
+        run: go build -o approvewarden .
+      - name: run on demo fixture
+        run: ./approvewarden ../../demos/01-basic/approvals.json | grep -q '"risk_level": "critical"'
+
+  rust:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ports/rust
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: test
+        run: cargo test
+      - name: build
+        run: cargo build --release
+      - name: run on demo fixture
+        run: ./target/release/approvewarden ../../demos/01-basic/approvals.json | grep -q '"risk_level": "critical"'
+
+  javascript:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ports/javascript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: test
+        run: node test.js
+      - name: run on demo fixture
+        run: node index.js ../../demos/01-basic/approvals.json | grep -q '"risk_level": "critical"'
