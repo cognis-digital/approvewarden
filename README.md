@@ -24,6 +24,69 @@ JSON/CSV) and tells you which of them a drainer could exploit. It does **no
 network calls and signs nothing** — it is a deterministic, CI-friendly auditor
 you can run in a pipeline, a pre-flight check, or an AI agent.
 
+
+<!-- cognis:example:start -->
+## 🔎 Example output
+
+Real, reproducible output from the tool — runs offline:
+
+```console
+$ approvewarden-emit --version
+approvewarden 0.2.0
+```
+
+```console
+$ approvewarden-emit --help
+usage: approvewarden [-h] [--version] {scan,mcp} ...
+
+Scan a wallet's token approvals for infinite allowances and score drainer exposure (offline, CI-friendly).
+
+positional arguments:
+  {scan,mcp}
+    scan      audit an exported approval set (JSON or CSV)
+    mcp       start the MCP stdio server (needs the [mcp] extra)
+
+options:
+  -h, --help  show this help message and exit
+  --version   show program's version number and exit
+
+examples:
+  approvewarden scan approvals.json
+  approvewarden scan approvals.csv --format json | jq .risk_score
+  approvewarden scan approvals.json --fail-on high
+```
+
+> Blocks above are real `approvewarden` output — reproduce them from a clone.
+
+**Sample result format** _(illustrative values — run on your own data for real findings):_
+
+```
+{
+"findings": [
+    {
+        "id": "1234567890",
+        "title": "Suspicious Network Traffic",
+        "description": "Network traffic from unknown IP address",
+        "created_at": "2023-02-20T14:30:00Z",
+        "updated_at": "2023-02-20T14:30:00Z",
+        "labels": ["network", "suspicious"],
+        "observables": [
+            {
+                "type": "ip-dst",
+                "value": "192.0.2.1"
+            },
+            {
+                "type": "port",
+                "value": 443
+            }
+        ]
+    }
+]
+}
+```
+
+<!-- cognis:example:end -->
+
 ## Contents
 
 - [Why](#why) · [What it detects](#detects) · [Install](#install) · [Quickstart](#quickstart) · [Worked example](#example) · [Input format](#input) · [Output formats](#output) · [Revoke plan](#revoke) · [CI gating](#ci) · [Edge / air-gap](#edge) · [Language ports](#ports) · [Scope & safety](#safety) · [Architecture](#architecture) · [Integrations](#integrations) · [Related tools](#related) · [License](#license)

@@ -1,0 +1,19 @@
+$ approvewarden-emit --help
+
+usage: approvewarden [-h] [--version] {scan,mcp} ...
+
+Scan a wallet's token approvals for infinite allowances and score drainer exposure (offline, CI-friendly).
+
+positional arguments:
+  {scan,mcp}
+    scan      audit an exported approval set (JSON or CSV)
+    mcp       start the MCP stdio server (needs the [mcp] extra)
+
+options:
+  -h, --help  show this help message and exit
+  --version   show program's version number and exit
+
+examples:
+  approvewarden scan approvals.json
+  approvewarden scan approvals.csv --format json | jq .risk_score
+  approvewarden scan approvals.json --fail-on high
