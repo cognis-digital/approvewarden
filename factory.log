@@ -1,0 +1,19 @@
+[2026-07-09 07:24:15] === enhance · approvewarden · words=120000 loc>=10000 langs=9 push=True ===
+[2026-07-09 07:24:20] phase DOCS — longform 120000-word corpus -> docs/corpus/
+[2026-07-09 16:55:20] phase POLYGLOT — expanding to >= 10000 LOC across 9 languages
+[2026-07-09 16:55:51]   facets: ['token_info_loader', 'approval_query_engine', 'threat_pattern_matcher', 'exposure_calculator', 'revocation_generator', 'finding_reporter']
+[2026-07-09 16:57:25]   +polyglot/python/token_info_loader.py  (loc now ~3981)
+[2026-07-09 16:59:34]   +polyglot/go/token_info_loader.go  (loc now ~4404)
+[2026-07-09 17:01:29]   +polyglot/rust/token_info_loader.rs  (loc now ~4923)
+[2026-07-09 17:03:36]   +polyglot/typescript/token_info_loader.ts  (loc now ~5378)
+[2026-07-09 17:05:31]   +polyglot/c/token_info_loader.c  (loc now ~5738)
+[2026-07-09 17:07:27]   +polyglot/cpp/token_info_loader.cpp  (loc now ~6198)
+[2026-07-09 17:09:14]   +polyglot/java/token_info_loader.java  (loc now ~6505)
+[2026-07-09 17:13:12]   +polyglot/csharp/token_info_loader.cs  (loc now ~6982)
+[2026-07-09 17:14:58]   +polyglot/python/approval_query_engine.py  (loc now ~7384)
+[2026-07-09 17:16:54]   +polyglot/go/approval_query_engine.go  (loc now ~7824)
+[2026-07-09 17:19:01]   +polyglot/rust/approval_query_engine.rs  (loc now ~8256)
+[2026-07-09 17:20:57]   +polyglot/typescript/approval_query_engine.ts  (loc now ~8802)
+[2026-07-09 17:22:54]   +polyglot/c/approval_query_engine.c  (loc now ~9192)
+[2026-07-09 17:24:50]   +polyglot/cpp/approval_query_engine.cpp  (loc now ~9564)
+[2026-07-09 17:27:13]   +polyglot/ruby/approval_query_engine.rb  (loc now ~10053)
