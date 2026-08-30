@@ -17,3 +17,8 @@
 [2026-07-09 17:22:54]   +polyglot/c/approval_query_engine.c  (loc now ~9192)
 [2026-07-09 17:24:50]   +polyglot/cpp/approval_query_engine.cpp  (loc now ~9564)
 [2026-07-09 17:27:13]   +polyglot/ruby/approval_query_engine.rb  (loc now ~10053)
+[2026-07-09 17:27:16] === done · approvewarden · loc=10053 · {'committed': True, 'pushed': True, 'push_err': ''} ===
+[2026-08-30 07:32:24] === enhance · approvewarden · words=120000 loc>=10000 langs=9 push=True ===
+[2026-08-30 07:32:29] phase DOCS — longform 120000-word corpus -> docs/corpus/
+[2026-08-30 18:57:03] phase POLYGLOT — expanding to >= 10000 LOC across 9 languages
+[2026-08-30 19:03:29]   facets: ['wallet_parser', 'approval_fetcher', 'risk_scoring_engine', 'infinite_allowance_detector', 'revoke_builder', 'transaction_emitter']
